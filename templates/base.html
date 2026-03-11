@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Search{% endblock %} - Middle Egyptian Dictionary</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='Content/bootstrap.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Content/component-custom-switch.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Content/Site.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Content/res.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Content/css/select2.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='Content/loading.css') }}">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.1.0/css/all.css"
+          integrity="sha384-lKuwvrZot6UHsBSfcMvOkWwlCMgc0TaWr+30HWe3a4ltaBwTZhyTEggF5tJv8tbt"
+          crossorigin="anonymous">
+    <script src="{{ url_for('static', filename='Scripts/modernizr-2.8.3.js') }}"></script>
+    <script src="{{ url_for('static', filename='Scripts/res/res_aux.js') }}"></script>
+    <script src="{{ url_for('static', filename='Scripts/res/res_points.js') }}"></script>
+    <script src="{{ url_for('static', filename='Scripts/res/res_lite.js') }}"></script>
+    <script src="{{ url_for('static', filename='Scripts/res/res_signinfo.js') }}"></script>
+    <script src="{{ url_for('static', filename='Scripts/res/res_struct.js') }}"></script>
+    <script src="{{ url_for('static', filename='Scripts/res/res_syntax.js') }}"></script>
+    <script src="{{ url_for('static', filename='Scripts/res/res_format.js') }}"></script>
+    <script src="{{ url_for('static', filename='Scripts/res/res_render.js') }}"></script>
+    <script src="{{ url_for('static', filename='Scripts/res/res_web.js') }}"></script>
+    <script src="{{ url_for('static', filename='Scripts/popper.js') }}"></script>
+    <script src="{{ url_for('static', filename='Scripts/jquery-3.4.1.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='Scripts/jquery.validate.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='Scripts/bootstrap.bundle.js') }}"></script>
+    <script src="{{ url_for('static', filename='Scripts/select2.js') }}"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="{% block body_class %}max_width{% endblock %}">
+    <div id="outsidescreen">
+        <span class="outsidescreen_elem hi">&#57344;</span>
+        <span class="outsidescreen_elem hiaux">&#35;</span>
+        <span class="outsidescreen_elem hinotes">&#35;</span>
+    </div>
+    <div class="navbar navbar-dark navbar-expand-sm fixed-top" style="background-color:indianred;">
+        <div class="container">
+            <div class="navbar-brand">
+                <button type="button" class="navbar-toggler" data-toggle="collapse" data-target=".navbar-collapse">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <a href="{{ url_for('index') }}" class="navbar-brand">Middle Egyptian Dictionary</a>
+            </div>
+            <div class="navbar-collapse collapse">
+                <ul class="nav navbar-nav">
+                    <li class="nav-item"><a href="{{ url_for('index') }}" class="nav-link">Search</a></li>
+                    <li class="nav-item"><a href="{{ url_for('gardiner_signs') }}" class="nav-link">Sign List</a></li>
+                    <li class="nav-item"><a href="{{ url_for('about') }}" class="nav-link">About</a></li>
+                    <li class="nav-item"><a href="{{ url_for('references') }}" class="nav-link">References</a></li>
+                    <li class="nav-item"><a href="{{ url_for('faulkner') }}" class="nav-link">Faulkner</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="body-content">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

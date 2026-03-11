@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Search{% endblock %}
+{% block body_class %}jumbo_image img-fluid{% endblock %}
+
+{% block extra_head %}
+<script src="{{ url_for('static', filename='Scripts/searchform.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<!--Speed up font display for extended case-->
+<span class="invisible eg-A100"></span>
+
+{% if error %}
+<label class="alert-danger" style="padding: 15px; border-radius: 5%; margin-top: 50px;">{{ error }}</label>
+{% endif %}
+
+<form action="{{ url_for('submit') }}" method="post">
+    <div style="align-items:center; justify-content:center; display:flex;">
+        <div class="img_overlay" style="display:block; padding:2em;">
+            <h3 class="display-4">Search.</h3>
+            <div class="search_div">
+                <div class="btn-group btn-group-toggle" data-toggle="buttons">
+                    <label class="btn btn-outline-danger search_config" onchange="ChangeTextbox(0);">
+                        <input type="radio" name="Type" value="all" style="display:none;"> All
+                    </label>
+                    <label class="btn btn-outline-danger search_config active" onchange="ChangeTextbox(0);">
+                        <input type="radio" name="Type" value="transliteration" style="display:none;" checked="checked"> Transliteration
+                    </label>
+                    <label class="btn btn-outline-danger search_config" id="translationradio" onchange="ChangeTextbox(0);">
+                        <input type="radio" name="Type" value="translation" style="display:none;"> Translation
+                    </label>
+                    <label class="btn btn-outline-danger search_config" onchange="ChangeTextbox(1);">
+                        <input type="radio" name="Type" value="gardiner" style="display:none;"> Gardiner Sign
+                    </label>
+                </div>
+            </div>
+
+            <div class="search_div">
+                <div class="input-group">
+                    <input type="text" name="Query" class="form-control" placeholder="Search..." id="regular-input">
+                    <select class="js-example-basic-multiple" multiple="multiple" onchange="SelectClick()"></select>
+                    <span class="input-group-btn">
+                        <button class="btn btn-outline-dark" type="submit" value="Submit">
+                            <i class="fas fa-search"></i>
+                            Search
+                        </button>
+                    </span>
+                    <input type="text" name="SignQuery" id="SignQuery" style="display:none;">
+                </div>
+            </div>
+
+            <div class="row" style="display: table">
+                <div class="toggle-label">
+                    Exact Match:
+                    <div class="custom-switch custom-switch-xs" style="margin-left: 3em;">
+                        <input class="custom-switch-input" id="exactmatchcheck" checked type="checkbox" onclick="UpdateValues()">
+                        <label class="custom-switch-btn" for="exactmatchcheck"></label>
+                    </div>
+                </div>
+                <input type="checkbox" name="ExactMatch" id="exactmatch" style="display:none" checked="checked">
+
+                <div class="row">
+                    <div class="toggle-label" style="margin-left: 1em;">
+                        Display Formatting:
+                        <div class="custom-switch custom-switch-xs">
+                            <input class="custom-switch-input" id="formattingcheck" checked type="checkbox" onchange="UpdateValues()">
+                            <label class="custom-switch-btn" for="formattingcheck"></label>
+                        </div>
+                    </div>
+                </div>
+                <input type="checkbox" name="DisplayFormatted" id="formatting" style="display:none" checked="checked">
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

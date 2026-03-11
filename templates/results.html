@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Results{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h3 class="top_margin display-4">Results</h3>
+</div>
+
+{% if results %}
+
+<!-- Result count and pagination info -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <span class="text-muted">
+        Showing {{ (current_page - 1) * page_size + 1 }}-{{ [current_page * page_size, total_results] | min }} of {{ total_results }} results
+        {% if truncated %}
+        <small class="text-warning">(truncated from {{ original_count }} - refine your search)</small>
+        {% endif %}
+    </span>
+</div>
+
+<!-- Top pagination -->
+{% if total_pages > 1 %}
+{% include "pagination.html" %}
+{% endif %}
+
+<table class="table table-hover table-responsive-lg">
+    <thead style="width: 100%">
+        <tr>
+            <th>Hieroglyphs</th>
+            <th>Transliteration</th>
+            <th>Gardiner Signs</th>
+            <th>Translations</th>
+        </tr>
+    </thead>
+    <tbody style="width:100%">
+        {% for result in results %}
+        <tr>
+            <td>
+                {% if display_formatted %}
+                    {% set gardiner = result.get('GardinerSigns', '') %}
+                    {% set mdc = result.get('ManuelDeCodage') %}
+                    {% set res_val = result.get('Res') %}
+                    {# Identifier used for unknown-glyph lookup: prefer Res/MdC, fall back to Gardiner code #}
+                    {% set glyph_id = res_val or mdc or gardiner %}
+                    {% if ' ' not in gardiner and glyph_id in unknown_glyphs %}
+                        <img src="{{ url_for('image', key=gardiner) }}" alt="{{ gardiner }}" style="max-height:40px; max-width: 36px;" />
+                    {% elif res_val %}
+                        <canvas class="res">{{ res_val.replace('AV1', 'A100') }}</canvas>
+                    {% elif mdc %}
+                        <canvas class="res">{{ mdc.replace('AA', 'Aa') }}</canvas>
+                    {% else %}
+                        {# Mixed rendering: canvas for RES-known signs, img fallback for unknown ones #}
+                        {% for item in gardiner_render_items(gardiner) %}
+                            {% if item.kind == 'canvas' %}
+                                <canvas class="res">{{ item.value }}</canvas>
+                            {% else %}
+                                <img src="{{ url_for('image', key=item.key) }}" alt="{{ item.key }}" style="max-height:40px; max-width: 36px; vertical-align: middle;" />
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                {% else %}
+                    <span class="large_text large-text">{{ convert_gardiner(result.get('GardinerSigns', '')) }}</span>
+                {% endif %}
+            </td>
+            <td>{{ prettify_transliteration(result.get('Transliteration', '')) }}</td>
+            <td>{{ result.get('GardinerSigns', '') }}</td>
+            {% set translations = result.get('Translations', []) %}
+            {% if translations %}
+            <td>
+                <table class="table table-responsive-lg" style="width: 100%">
+                    <tbody style="width: 100%">
+                        {% for translation in translations %}
+                        <tr>
+                            {% set metadata = translation.get('TranslationMetadata', []) %}
+                            {% if metadata %}
+                            <td style="width:15%">
+                                {% for m in metadata %}
+                                    {% set name = datasource_name(m.get('DictionaryName', '')) %}
+                                    {% set color = datasource_color(name) %}
+                                    {% set page_num = m.get('Page') %}
+                                    {% set idx = m.get('IndexOnPage') %}
+                                    {% if page_num is not none %}
+                                        {% set label %}{{ name | title }} <span class="badge bg-white text-dark">(p. {{ page_num }}, {{ (idx or 0) + 1 }})</span>{% endset %}
+                                    {% else %}
+                                        {% set label = name | title %}
+                                    {% endif %}
+                                    <span class="badge" style="background-color: {{ color }}">{{ label | safe }}</span>
+                                {% endfor %}
+                            </td>
+                            {% endif %}
+                            <td style="width: 85%">
+                                {% set parts_of_speech = metadata | map(attribute='PartOfSpeech') | select | list %}
+                                {% if parts_of_speech %}
+                                    [<i>{{ parts_of_speech | join(', ') }}</i>]
+                                {% endif %}
+                                {% set first_meta = metadata[0] if metadata else {} %}
+                                {% if first_meta.get('DictionaryName') == 4 %}
+                                    {{ translation.get('translation', '') | safe }}
+                                {% else %}
+                                    {{ translation.get('translation', '') }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Bottom pagination -->
+{% if total_pages > 1 %}
+{% include "pagination.html" %}
+{% endif %}
+
+{% else %}
+<hr />
+<h5 style="text-align:center">No results!</h5>
+{% endif %}
+
+<p><a href="{{ url_for('index') }}">Back to Search</a></p>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        ResWeb();
+    });
+</script>
+{% endblock %}
