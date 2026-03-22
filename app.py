@@ -361,12 +361,41 @@ def _load_results(search_id: str) -> list | None:
 # DataSource helpers
 # ---------------------------------------------------------------------------
 
-_DATASOURCE_NAMES = {0: "dickson", 1: "vygus", 2: "lexicon", 4: "faulkner"}
+_DATASOURCE_NAMES = {
+    0: "dickson",
+    1: "vygus",
+    2: "lexicon",
+    4: "faulkner",
+    5: "collier_manley",
+    6: "allen",
+    7: "hoch",
+    8: "kamrin",
+    9: "gardiner_grammar",
+    10: "evans",
+}
+_DATASOURCE_DISPLAY = {
+    "dickson": "Dickson",
+    "vygus": "Vygus",
+    "lexicon": "Lexicon",
+    "faulkner": "Faulkner",
+    "collier_manley": "Collier & Manley",
+    "allen": "Allen",
+    "hoch": "Hoch",
+    "kamrin": "Kamrin",
+    "gardiner_grammar": "Gardiner Grammar",
+    "evans": "Evans",
+}
 _DATASOURCE_COLORS = {
     "faulkner": "lightblue",
     "vygus": "thistle",
     "dickson": "lightpink",
     "lexicon": "moccasin",
+    "collier_manley": "lightgreen",
+    "allen": "lightyellow",
+    "hoch": "lavender",
+    "kamrin": "peachpuff",
+    "gardiner_grammar": "honeydew",
+    "evans": "aliceblue",
 }
 
 
@@ -374,6 +403,10 @@ def datasource_name(value) -> str:
     if isinstance(value, int):
         return _DATASOURCE_NAMES.get(value, str(value))
     return str(value).lower()
+
+
+def datasource_display(name: str) -> str:
+    return _DATASOURCE_DISPLAY.get(name.lower(), name.replace("_", " ").title())
 
 
 def datasource_color(name: str) -> str:
@@ -448,6 +481,7 @@ def results():
         convert_gardiner=convert_gardiner,
         prettify_transliteration=prettify_transliteration,
         datasource_name=datasource_name,
+        datasource_display=datasource_display,
         datasource_color=datasource_color,
         gardiner_to_res=gardiner_to_res,
         gardiner_render_items=gardiner_render_items,

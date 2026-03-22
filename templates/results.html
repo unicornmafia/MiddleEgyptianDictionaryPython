@@ -77,12 +77,13 @@
                                 {% for m in metadata %}
                                     {% set name = datasource_name(m.get('DictionaryName', '')) %}
                                     {% set color = datasource_color(name) %}
+                                    {% set display = datasource_display(name) %}
                                     {% set page_num = m.get('Page') %}
                                     {% set idx = m.get('IndexOnPage') %}
                                     {% if page_num is not none %}
-                                        {% set label %}{{ name | title }} <span class="badge bg-white text-dark">(p. {{ page_num }}, {{ (idx or 0) + 1 }})</span>{% endset %}
+                                        {% set label %}{{ display }} <span class="badge bg-white text-dark">(p. {{ page_num }}, {{ (idx or 0) + 1 }})</span>{% endset %}
                                     {% else %}
-                                        {% set label = name | title %}
+                                        {% set label = display %}
                                     {% endif %}
                                     <span class="badge" style="background-color: {{ color }}">{{ label | safe }}</span>
                                 {% endfor %}

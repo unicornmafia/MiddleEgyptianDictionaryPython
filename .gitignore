@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 .idea/
 search_cache/
+.DS_Store
+static/.DS_Store
+static/Resources/stargate.jpg

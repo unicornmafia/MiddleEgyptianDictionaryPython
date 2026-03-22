@@ -3,8 +3,12 @@
 Parse Vygus 2018, Dickson 2006, and Faulkner 1991 Middle Egyptian dictionary PDFs
 and import a unified dataset into MongoDB (matching the app's schema).
 
+Also parses supplementary .hwd / .hrw / .csv vocabulary files from a dictionary
+directory and merges them into the unified dataset.
+
 Usage:
     .venv/bin/python3 parse_dictionaries.py [--dry-run] [--out entries.json]
+    .venv/bin/python3 parse_dictionaries.py --dict-dir ./dictionaries --from-json entries.json
 
 Environment variables:
     MONGO_URI       (default: mongodb://localhost:27017)
@@ -12,6 +16,7 @@ Environment variables:
 """
 
 import argparse
+import csv
 import json
 import os
 import re
@@ -24,9 +29,15 @@ from pymongo import MongoClient, UpdateOne
 # ---------------------------------------------------------------------------
 # DataSource enum values matching the app
 # ---------------------------------------------------------------------------
-DICKSON  = 0
-VYGUS    = 1
-FAULKNER = 4
+DICKSON          = 0
+VYGUS            = 1
+FAULKNER         = 4
+COLLIER_MANLEY   = 5
+ALLEN            = 6
+HOCH             = 7
+KAMRIN           = 8
+GARDINER_GRAMMAR = 9
+EVANS            = 10
 
 PDFS_DIR = os.path.join(os.path.dirname(__file__), "pdfs")
 
@@ -245,6 +256,120 @@ def parse_faulkner(pdf_path: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Vocabulary file parser (.hwd / .hrw / .csv)
+# ---------------------------------------------------------------------------
+# All three formats share the same CSV layout:
+#   Row 0 (header): source_name, author, date, email, desc1, desc2, desc3
+#   Data rows:      type, category, glyph_positions, gardiner_codes,
+#                   transliteration, translation, notes
+# Gardiner codes in field 3 are separated by " - "; we normalise to space-sep.
+
+_DICT_DIR = os.path.join(os.path.dirname(__file__), "dictionaries")
+_POS_BRACKET = re.compile(r'\[\s*([^\]]+?)\s*\]')
+
+
+def _map_source_name(name: str) -> int:
+    """Map a human-readable source name from a file header to a DictionaryName int."""
+    n = name.lower()
+    if "vygus" in n or "hieroglyph dictionary" in n:
+        return VYGUS
+    if "collier" in n or "manley" in n:
+        return COLLIER_MANLEY
+    if "allen" in n:
+        return ALLEN
+    if "hoch" in n:
+        return HOCH
+    if "kamrin" in n or "chapter" in n:
+        return KAMRIN
+    if "gardiner" in n:
+        return GARDINER_GRAMMAR
+    # Biliterals, Triliterals, Kate Evans
+    return EVANS
+
+
+def _normalise_gardiner_codes(raw: str) -> str:
+    """Convert ' - '-separated code string to space-separated, trimmed."""
+    # Split on ' - ' or '-' surrounded by optional spaces, then rejoin
+    parts = re.split(r'\s*-\s*', raw.strip())
+    return " ".join(p.strip() for p in parts if p.strip())
+
+
+def _parse_vocab_file(filepath: str) -> list[dict]:
+    """Parse a single .hwd / .hrw / .csv vocabulary file."""
+    entries = []
+    try:
+        with open(filepath, newline="", encoding="utf-8", errors="replace") as fh:
+            rows = list(csv.reader(fh))
+    except OSError as e:
+        print(f"  Warning: could not read {filepath}: {e}", file=sys.stderr)
+        return entries
+
+    if not rows:
+        return entries
+
+    # Row 0 is the header; determine source name from first field
+    source_id = _map_source_name(rows[0][0] if rows[0] else "")
+
+    for row in rows[1:]:
+        if len(row) < 6:
+            continue
+        # field indices: 0=type, 1=category, 2=glyph_positions, 3=gardiner_codes,
+        #                4=transliteration, 5=translation, 6=notes (optional)
+        gardiner_raw  = row[3].strip()
+        transliteration = row[4].strip()
+        translation     = row[5].strip()
+        notes           = row[6].strip() if len(row) > 6 else ""
+
+        if not transliteration or not translation:
+            continue
+
+        gardiner = _normalise_gardiner_codes(gardiner_raw)
+
+        # Extract part-of-speech from notes: [ noun ], [ verb ], etc.
+        pos = None
+        pm = _POS_BRACKET.search(notes)
+        if pm:
+            pos = pm.group(1).strip()
+
+        entries.append({
+            "transliteration": transliteration,
+            "gardiner_signs":  gardiner,
+            "translation":     translation,
+            "pos":             pos,
+            "source":          source_id,
+        })
+
+    return entries
+
+
+def parse_all_vocab_files(directory: str) -> list[dict]:
+    """
+    Walk a directory tree and parse all .hwd, .hrw, and .csv files.
+    Gardiner individual lesson files (Gardiner2.csv … Gardiner33.csv) are
+    skipped in favour of Gardinerall.csv which contains the same content.
+    """
+    _GARDINER_LESSON_RE = re.compile(r'^Gardiner\d+\.csv$', re.IGNORECASE)
+
+    all_entries = []
+    for root, _dirs, files in os.walk(directory):
+        for fname in sorted(files):
+            ext = os.path.splitext(fname)[1].lower()
+            if ext not in (".hwd", ".hrw", ".csv"):
+                continue
+            # Skip individual Gardiner lesson files — Gardinerall.csv covers them
+            if _GARDINER_LESSON_RE.match(fname):
+                continue
+            fpath = os.path.join(root, fname)
+            parsed = _parse_vocab_file(fpath)
+            print(f"  {fname}: {len(parsed)} entries (source={parsed[0]['source'] if parsed else '?'})",
+                  file=sys.stderr)
+            all_entries.extend(parsed)
+
+    print(f"  Vocab files total: {len(all_entries)} entries", file=sys.stderr)
+    return all_entries
+
+
+# ---------------------------------------------------------------------------
 # Merge into unified DictionaryEntry documents
 # ---------------------------------------------------------------------------
 # Entries from Vygus/Dickson are keyed by (transliteration, gardiner_signs).
@@ -262,7 +387,7 @@ def _normalise_translit(t: str) -> str:
     return t.strip()
 
 
-def merge_entries(vygus: list, dickson: list, faulkner: list) -> list[dict]:
+def merge_entries(vygus: list, dickson: list, faulkner: list, vocab: list | None = None) -> list[dict]:
     """
     Produce a list of DictionaryEntry dicts matching the app's MongoDB schema.
 
@@ -363,9 +488,82 @@ def merge_entries(vygus: list, dickson: list, faulkner: list) -> list[dict]:
             e["index_on_page"],
         )
 
+    # --- Vocabulary files (Allen, Collier&Manley, Hoch, Kamrin, etc.) ---
+    if vocab:
+        for e in vocab:
+            entry = _get_or_create(e["transliteration"], e["gardiner_signs"])
+            _add_translation(entry, e["translation"], e["source"], e["pos"], None, None)
+
     result = list(merged.values())
     print(f"  Merged: {len(result)} unique entries", file=sys.stderr)
     return result
+
+
+def merge_vocab_into_existing(existing: list[dict], vocab: list[dict]) -> list[dict]:
+    """
+    Merge vocabulary file entries into an already-built entries list (e.g. loaded
+    from entries.json).  Returns the updated list.
+    """
+    # Build lookup index from existing entries
+    index: dict[tuple, dict] = {}
+    for entry in existing:
+        key = (_normalise_translit(entry["Transliteration"]),
+               _normalise_gard(entry.get("GardinerSigns", "")))
+        index[key] = entry
+
+    def _add(entry: dict, translation: str, source: int, pos, page, idx):
+        for t in entry["Translations"]:
+            if t["translation"] == translation:
+                for m in t["TranslationMetadata"]:
+                    if m["DictionaryName"] == source:
+                        return
+                t["TranslationMetadata"].append({
+                    "DictionaryName": source,
+                    "PartOfSpeech":   pos,
+                    "Page":           page,
+                    "IndexOnPage":    idx,
+                })
+                return
+        entry["Translations"].append({
+            "translation": translation,
+            "TranslationMetadata": [{
+                "DictionaryName": source,
+                "PartOfSpeech":   pos,
+                "Page":           page,
+                "IndexOnPage":    idx,
+            }],
+        })
+
+    new_entries = 0
+    for e in vocab:
+        key = (_normalise_translit(e["transliteration"]),
+               _normalise_gard(e["gardiner_signs"]))
+        if key in index:
+            _add(index[key], e["translation"], e["source"], e["pos"], None, None)
+        else:
+            new_entry = {
+                "Transliteration": e["transliteration"],
+                "GardinerSigns":   _normalise_gard(e["gardiner_signs"]),
+                "Res":             None,
+                "ManuelDeCodage":  None,
+                "Translations": [{
+                    "translation": e["translation"],
+                    "TranslationMetadata": [{
+                        "DictionaryName": e["source"],
+                        "PartOfSpeech":   e["pos"],
+                        "Page":           None,
+                        "IndexOnPage":    None,
+                    }],
+                }],
+            }
+            index[key] = new_entry
+            existing.append(new_entry)
+            new_entries += 1
+
+    print(f"  Vocab merge: {new_entries} new entries added, "
+          f"{len(vocab) - new_entries} translations merged into existing entries",
+          file=sys.stderr)
+    return existing
 
 
 # ---------------------------------------------------------------------------
@@ -451,7 +649,10 @@ def main():
     parser.add_argument("--out", default="entries.json",
                         help="JSON output file (default: entries.json)")
     parser.add_argument("--from-json", metavar="FILE",
-                        help="Skip parsing; import directly from an existing JSON file")
+                        help="Skip PDF parsing; load base entries from an existing JSON file")
+    parser.add_argument("--dict-dir", metavar="DIR", default=None,
+                        help="Directory of .hwd/.hrw/.csv vocab files to merge in "
+                             "(default: ./dictionaries if it exists)")
     parser.add_argument("--skip-vygus",    action="store_true")
     parser.add_argument("--skip-dickson",  action="store_true")
     parser.add_argument("--skip-faulkner", action="store_true")
@@ -472,19 +673,31 @@ def main():
 
         print("Parsing dictionaries…", file=sys.stderr)
 
-        vygus_entries    = parse_vygus(vygus_path)    if not args.skip_vygus    else []
-        dickson_entries  = parse_dickson(dickson_path) if not args.skip_dickson  else []
+        vygus_entries    = parse_vygus(vygus_path)       if not args.skip_vygus    else []
+        dickson_entries  = parse_dickson(dickson_path)   if not args.skip_dickson  else []
         faulkner_entries = parse_faulkner(faulkner_path) if not args.skip_faulkner else []
 
         print("Merging…", file=sys.stderr)
         entries = merge_entries(vygus_entries, dickson_entries, faulkner_entries)
 
-        # Write JSON output (without ObjectIds – they're added at import time)
-        out_path = os.path.join(os.path.dirname(__file__), args.out)
-        print(f"Writing {out_path}…", file=sys.stderr)
-        with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(entries, f, ensure_ascii=False, indent=2)
-        print(f"  Wrote {len(entries)} entries to {args.out}", file=sys.stderr)
+    # --- Vocabulary files ---
+    dict_dir = args.dict_dir
+    if dict_dir is None and os.path.isdir(_DICT_DIR):
+        dict_dir = _DICT_DIR
+
+    if dict_dir:
+        print(f"Parsing vocabulary files in {dict_dir}…", file=sys.stderr)
+        vocab = parse_all_vocab_files(dict_dir)
+        if vocab:
+            print("Merging vocabulary entries…", file=sys.stderr)
+            entries = merge_vocab_into_existing(entries, vocab)
+
+    # Write JSON output (without ObjectIds – they're added at import time)
+    out_path = os.path.join(os.path.dirname(__file__), args.out)
+    print(f"Writing {out_path}…", file=sys.stderr)
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(entries, f, ensure_ascii=False, indent=2)
+    print(f"  Wrote {len(entries)} entries to {args.out}", file=sys.stderr)
 
     if not args.dry_run:
         print(f"Importing to MongoDB {uri} / {db_name}…", file=sys.stderr)
