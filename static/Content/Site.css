@@ -61,12 +61,11 @@ textarea {
     background-color: black;
     background-image: url("../Resources/stargate.jpg");
     background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
     width: 100%;
     height: 100%;
-    max-width: 100%;
-    background-position-x: 65%;
-    background-position-y: 20%;
-    background-attachment: fixed;
 }
 
 .img_overlay {
