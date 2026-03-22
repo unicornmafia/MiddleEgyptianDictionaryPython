@@ -372,6 +372,7 @@ _DATASOURCE_NAMES = {
     8: "kamrin",
     9: "gardiner_grammar",
     10: "evans",
+    11: "faulkner_revised",
 }
 _DATASOURCE_DISPLAY = {
     "dickson": "Dickson",
@@ -384,6 +385,7 @@ _DATASOURCE_DISPLAY = {
     "kamrin": "Kamrin",
     "gardiner_grammar": "Gardiner Grammar",
     "evans": "Evans",
+    "faulkner_revised": "Faulkner (Revised)",
 }
 _DATASOURCE_COLORS = {
     "faulkner": "lightblue",
@@ -396,6 +398,7 @@ _DATASOURCE_COLORS = {
     "kamrin": "peachpuff",
     "gardiner_grammar": "honeydew",
     "evans": "aliceblue",
+    "faulkner_revised": "lightcyan",
 }
 
 

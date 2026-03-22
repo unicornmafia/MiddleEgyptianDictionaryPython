@@ -32,12 +32,13 @@ from pymongo import MongoClient, UpdateOne
 DICKSON          = 0
 VYGUS            = 1
 FAULKNER         = 4
-COLLIER_MANLEY   = 5
-ALLEN            = 6
-HOCH             = 7
-KAMRIN           = 8
-GARDINER_GRAMMAR = 9
-EVANS            = 10
+COLLIER_MANLEY    = 5
+ALLEN             = 6
+HOCH              = 7
+KAMRIN            = 8
+GARDINER_GRAMMAR  = 9
+EVANS             = 10
+FAULKNER_REVISED  = 11
 
 PDFS_DIR = os.path.join(os.path.dirname(__file__), "pdfs")
 
@@ -252,6 +253,75 @@ def parse_faulkner(pdf_path: str) -> list[dict]:
         _flush()
 
     print(f"  Faulkner: parsed {len(entries)} entries", file=sys.stderr)
+    return entries
+
+
+# ---------------------------------------------------------------------------
+# FAULKNER (REVISED) parser — Boris Jegorović 2017 modernisation
+# ---------------------------------------------------------------------------
+# Same entry format as the original: - <transliteration> - <definition>
+# Printed page numbers appear as isolated digit lines; PDF page index 17
+# corresponds to printed page 1 (offset = 16).
+
+_FAULK_REV_PDF      = os.path.join(os.path.dirname(__file__), "dictionaries",
+                                    "Faulkner (Revised).pdf")
+_FAULK_REV_START    = 17   # PDF page index where dictionary body starts
+_FAULK_REV_END      = 418  # last PDF page index with entries
+
+
+def parse_faulkner_revised(pdf_path: str = _FAULK_REV_PDF) -> list[dict]:
+    """Parse the Jegorović 2017 revised Faulkner PDF."""
+    entries      = []
+    current_page = 1     # printed page 1 = PDF index 17
+    page_index   = 0     # position within printed page
+
+    cur_translit = None
+    cur_lines    = []
+
+    def _flush():
+        nonlocal cur_translit, cur_lines, page_index
+        if cur_translit:
+            definition = " ".join(cur_lines).strip()
+            if definition:
+                entries.append({
+                    "transliteration": cur_translit,
+                    "gardiner_signs":  "",
+                    "translation":     definition,
+                    "pos":             None,
+                    "source":          FAULKNER_REVISED,
+                    "page":            current_page,
+                    "index_on_page":   page_index,
+                })
+                page_index += 1
+        cur_translit = None
+        cur_lines    = []
+
+    with pdfplumber.open(pdf_path) as pdf:
+        for pdf_page in pdf.pages[_FAULK_REV_START : _FAULK_REV_END + 1]:
+            text = pdf_page.extract_text()
+            if not text:
+                continue
+            for line in text.splitlines():
+                stripped = line.strip()
+                # Detect printed page number (bare 1–3 digit line)
+                if re.match(r'^\d{1,3}$', stripped):
+                    detected = int(stripped)
+                    if 1 <= detected <= 410:
+                        _flush()
+                        current_page = detected
+                        page_index   = 0
+                    continue
+
+                m = _FAULK_ENTRY_START.match(line)
+                if m:
+                    _flush()
+                    cur_translit = m.group(1)
+                    cur_lines    = [m.group(2).strip()]
+                elif cur_translit:
+                    cur_lines.append(stripped)
+        _flush()
+
+    print(f"  Faulkner Revised: parsed {len(entries)} entries", file=sys.stderr)
     return entries
 
 
@@ -538,8 +608,10 @@ def merge_vocab_into_existing(existing: list[dict], vocab: list[dict]) -> list[d
     for e in vocab:
         key = (_normalise_translit(e["transliteration"]),
                _normalise_gard(e["gardiner_signs"]))
+        page = e.get("page")
+        idx  = e.get("index_on_page")
         if key in index:
-            _add(index[key], e["translation"], e["source"], e["pos"], None, None)
+            _add(index[key], e["translation"], e["source"], e["pos"], page, idx)
         else:
             new_entry = {
                 "Transliteration": e["transliteration"],
@@ -551,8 +623,8 @@ def merge_vocab_into_existing(existing: list[dict], vocab: list[dict]) -> list[d
                     "TranslationMetadata": [{
                         "DictionaryName": e["source"],
                         "PartOfSpeech":   e["pos"],
-                        "Page":           None,
-                        "IndexOnPage":    None,
+                        "Page":           page,
+                        "IndexOnPage":    idx,
                     }],
                 }],
             }
@@ -653,9 +725,10 @@ def main():
     parser.add_argument("--dict-dir", metavar="DIR", default=None,
                         help="Directory of .hwd/.hrw/.csv vocab files to merge in "
                              "(default: ./dictionaries if it exists)")
-    parser.add_argument("--skip-vygus",    action="store_true")
-    parser.add_argument("--skip-dickson",  action="store_true")
-    parser.add_argument("--skip-faulkner", action="store_true")
+    parser.add_argument("--skip-vygus",             action="store_true")
+    parser.add_argument("--skip-dickson",            action="store_true")
+    parser.add_argument("--skip-faulkner",           action="store_true")
+    parser.add_argument("--skip-faulkner-revised",   action="store_true")
     args = parser.parse_args()
 
     uri     = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
@@ -679,6 +752,14 @@ def main():
 
         print("Merging…", file=sys.stderr)
         entries = merge_entries(vygus_entries, dickson_entries, faulkner_entries)
+
+    # --- Faulkner Revised ---
+    if not args.skip_faulkner_revised and os.path.exists(_FAULK_REV_PDF):
+        print("Parsing Faulkner (Revised)…", file=sys.stderr)
+        frev_entries = parse_faulkner_revised(_FAULK_REV_PDF)
+        if frev_entries:
+            print("Merging Faulkner (Revised) entries…", file=sys.stderr)
+            entries = merge_vocab_into_existing(entries, frev_entries)
 
     # --- Vocabulary files ---
     dict_dir = args.dict_dir
