@@ -59,7 +59,7 @@ textarea {
 
 .jumbo_image {
     background-color: black;
-    background-image: url("egypt.jpg");
+    background-image: url("../Resources/stargate.jpg");
     background-repeat: no-repeat;
     width: 100%;
     height: 100%;
