@@ -49,7 +49,7 @@ $(document).ready(function () {
     $('.js-example-basic-multiple').select2({
         data: [],
         placeholder: "Id, [translit.], [narrow], [broad], [tall]",
-        width: "60%",
+        width: "resolve",
         multiple: true,
         escapeMarkup: function (markup) {
             return markup;
@@ -86,7 +86,7 @@ function loadGardinerSelect2() {
             $select.select2({
                 data: data,
                 placeholder: "Id, [translit.], [narrow], [broad], [tall]",
-                width: "60%",
+                width: "resolve",
                 multiple: true,
                 escapeMarkup: function (markup) {
                     return markup;
@@ -143,24 +143,3 @@ function ChangeTextbox(x) {
     }
 }
 
-function UpdateValues() {
-    if ($("#exactmatchcheck").is(':checked')) {
-        $("#exactmatch").prop("checked", true);
-        $("#exactmatch").val(true);
-        $("#exactmatch").prop("active", true)
-    } else {
-        $("#exactmatch").prop("checked", false);
-        $("#exactmatch").val(false);
-        $("#exactmatch").prop("active", false)
-    }
-
-    if ($("#formattingcheck").is(':checked')) {
-        $("#formatting").prop("checked", true);
-        $("#formatting").prop("active", true);
-        $("#formatting").val(true);
-    } else {
-        $("#formatting").prop("checked", false);
-        $("#formatting").prop("active", false);
-        $("#formatting").val(false);
-    }
-}

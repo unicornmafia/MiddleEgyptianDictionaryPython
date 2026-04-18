@@ -7,6 +7,29 @@
 {% endblock %}
 
 {% block content %}
+<div id="stars-bg" style="position:fixed; top:0; left:0; width:100vw; height:100vh; pointer-events:none; overflow:hidden; z-index:-1;"></div>
+<script>
+(function() {
+    var bg = document.getElementById('stars-bg');
+    var cols = 16, rows = 12;
+    for (var r = 0; r < rows; r++) {
+        for (var c = 0; c < cols; c++) {
+            var s = document.createElement('span');
+            s.textContent = '\u{131FC}';
+            s.style.cssText = 'position:absolute;'
+                + 'left:' + ((c + 0.5) / cols * 100) + '%;'
+                + 'top:' + ((r + 0.5) / rows * 100) + '%;'
+                + 'font-family:Hieroglyphic;'
+                + 'font-size:48px;'
+                + 'color:yellow;'
+                + 'opacity:1;'
+                + 'transform:translate(-50%,-50%);'
+                + 'line-height:1;';
+            bg.appendChild(s);
+        }
+    }
+})();
+</script>
 <!--Speed up font display for extended case-->
 <span class="invisible eg-A100"></span>
 
@@ -15,23 +38,20 @@
 {% endif %}
 
 <form action="{{ url_for('submit') }}" method="post">
-    <div style="align-items:center; justify-content:center; display:flex;">
-        <div class="img_overlay" style="display:block; padding:2em;">
-            <h3 class="display-4">Search.</h3>
+    <div style="align-items:center; justify-content:center; display:flex; margin-top:-3px;">
+        <div class="img_overlay" style="display:flex; align-items:center; justify-content:center; border-radius:50%; aspect-ratio:1/1; width:600px; background-image:url('{{ url_for('static', filename='Resources/stargate_round.jpg') }}'); background-size:cover; background-position:calc(50% + 8px) calc(50% - 8px);">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:50%; aspect-ratio:1/1; width:480px; background-image:url('{{ url_for('static', filename='Resources/space.jpg') }}'); background-size:cover; background-position:center; margin-top:-6px;">
+            <h3 style="color:yellow; font-weight:bold; font-family:'Papyrus', fantasy; font-size:3.5rem;">Search</h3>
             <div class="search_div">
                 <div class="btn-group">
-                    <label class="btn btn-outline-primary search_config" onchange="ChangeTextbox(0);">
-                        <input type="radio" name="Type" value="all" style="display:none;"> All
-                    </label>
-                    <label class="btn btn-outline-primary search_config active" onchange="ChangeTextbox(0);">
-                        <input type="radio" name="Type" value="transliteration" style="display:none;" checked="checked"> Transliteration
-                    </label>
-                    <label class="btn btn-outline-primary search_config" id="translationradio" onchange="ChangeTextbox(0);">
-                        <input type="radio" name="Type" value="translation" style="display:none;"> Translation
-                    </label>
-                    <label class="btn btn-outline-primary search_config" onchange="ChangeTextbox(1);">
-                        <input type="radio" name="Type" value="gardiner" style="display:none;"> Gardiner Sign
-                    </label>
+                    <input type="radio" class="btn-check" name="Type" value="transliteration" id="type-mdc" autocomplete="off" checked onchange="ChangeTextbox(0);">
+                    <label class="btn btn-outline-primary search_config" for="type-mdc">Manual De Codage</label>
+
+                    <input type="radio" class="btn-check" name="Type" value="translation" id="type-english" autocomplete="off" onchange="ChangeTextbox(0);">
+                    <label class="btn btn-outline-primary search_config" id="translationradio" for="type-english">English</label>
+
+                    <input type="radio" class="btn-check" name="Type" value="gardiner" id="type-hieroglyphs" autocomplete="off" onchange="ChangeTextbox(1);">
+                    <label class="btn btn-outline-primary search_config" for="type-hieroglyphs">Hieroglyphs</label>
                 </div>
             </div>
 
@@ -39,7 +59,7 @@
                 <div class="input-group">
                     <input type="text" name="Query" class="form-control" placeholder="Search..." id="regular-input">
                     <select class="js-example-basic-multiple" multiple="multiple" onchange="SelectClick()"></select>
-                    <button class="btn btn-outline-dark" type="submit" value="Submit">
+                    <button class="btn btn-outline-dark search-submit" type="submit" value="Submit">
                         <i class="fas fa-search"></i>
                         Search
                     </button>
@@ -48,25 +68,15 @@
             </div>
 
             <div class="row" style="display: table">
-                <div class="toggle-label">
+                <div class="toggle-label" style="color:white;">
                     Exact Match:
                     <div class="custom-switch custom-switch-xs" style="margin-left: 3em;">
-                        <input class="custom-switch-input" id="exactmatchcheck" checked type="checkbox" onclick="UpdateValues()">
+                        <input class="custom-switch-input" id="exactmatchcheck" name="ExactMatch" value="true" checked type="checkbox">
                         <label class="custom-switch-btn" for="exactmatchcheck"></label>
                     </div>
                 </div>
-                <input type="checkbox" name="ExactMatch" id="exactmatch" style="display:none" checked="checked">
 
-                <div class="row">
-                    <div class="toggle-label" style="margin-left: 1em;">
-                        Display Formatting:
-                        <div class="custom-switch custom-switch-xs">
-                            <input class="custom-switch-input" id="formattingcheck" checked type="checkbox" onchange="UpdateValues()">
-                            <label class="custom-switch-btn" for="formattingcheck"></label>
-                        </div>
-                    </div>
-                </div>
-                <input type="checkbox" name="DisplayFormatted" id="formatting" style="display:none" checked="checked">
+            </div>
             </div>
         </div>
     </div>

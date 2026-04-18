@@ -249,10 +249,9 @@ def _search_by_transliteration(query: str, exact: bool) -> list:
 
 def _search_by_gardiner(query: str, exact: bool) -> list:
     col = entries_collection()
-    q = query.upper()
     if exact:
-        return list(col.find({"GardinerSigns": q}))
-    return list(col.find({"GardinerSigns": {"$regex": re.escape(q)}}))
+        return list(col.find({"GardinerSigns": query}))
+    return list(col.find({"GardinerSigns": {"$regex": re.escape(query)}}))
 
 
 def _search_by_translation(query: str, exact: bool) -> list:
