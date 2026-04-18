@@ -104,6 +104,13 @@ textarea {
     border-radius: 5px;
 }
 
+.custom-switch .custom-switch-input + .custom-switch-btn {
+    background: #4a7ab5 !important;
+}
+.custom-switch .custom-switch-input:checked + .custom-switch-btn {
+    background: #2255a4 !important;
+}
+
 .max_width {
     width: 100%;
 }
