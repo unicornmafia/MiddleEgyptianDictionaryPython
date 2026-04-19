@@ -1,0 +1,37 @@
+services:
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo_data:/data/db
+      - ./dump:/dump:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mongo-seed:
+    image: mongo:7
+    depends_on:
+      mongo:
+        condition: service_healthy
+    volumes:
+      - ./dump:/dump:ro
+    command: >
+      mongorestore --host mongo --db MiddleEgyptianDictionary /dump/MiddleEgyptianDictionary
+    restart: "no"
+
+  web:
+    build: .
+    ports:
+      - "5001:5001"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB: MiddleEgyptianDictionary
+      SECRET_KEY: change-me-in-prod
+
+volumes:
+  mongo_data:
