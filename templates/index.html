@@ -4,6 +4,31 @@
 
 {% block extra_head %}
 <script src="{{ url_for('static', filename='Scripts/searchform.js') }}"></script>
+<style>
+#sourcesDialog {
+    position: absolute;
+    width: 480px;
+    height: 480px;
+    border-radius: 50%;
+    background: radial-gradient(circle at center, #0d3075 0%, #041240 75%);
+    border: 3px solid steelblue;
+    padding: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+    color: white;
+    box-shadow: 0 0 40px rgba(70, 130, 180, 0.6);
+}
+#sourcesDialog .form-check-label { color: #d0e8ff; }
+#sourcesDialog .form-check-input { cursor: pointer; }
+#sourcesDialog .btn-outline-secondary {
+    color: #a0c4e8;
+    border-color: #4a7ab5;
+}
+#sourcesDialog .btn-outline-secondary:hover {
+    background: #1a3a6a;
+    color: white;
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -40,7 +65,7 @@
 <form action="{{ url_for('submit') }}" method="post">
     <div style="align-items:center; justify-content:center; display:flex; margin-top:-3px;">
         <div class="img_overlay" style="display:flex; align-items:center; justify-content:center; border-radius:50%; aspect-ratio:1/1; width:600px; background-image:url('{{ url_for('static', filename='Resources/stargate_round.jpg') }}'); background-size:cover; background-position:calc(50% + 8px) calc(50% - 8px);">
-            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:50%; aspect-ratio:1/1; width:480px; background-image:url('{{ url_for('static', filename='Resources/space.jpg') }}'); background-size:cover; background-position:center; margin-top:-6px;">
+            <div id="stargate-inner" style="display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius:50%; aspect-ratio:1/1; width:480px; background-image:url('{{ url_for('static', filename='Resources/space.jpg') }}'); background-size:cover; background-position:center; margin-top:-6px;">
             <h3 style="color:white; font-weight:bold; font-family:'Papyrus', fantasy; font-size:3.5rem;">Search</h3>
             <div class="search_div">
                 <div class="btn-group">
@@ -75,10 +100,171 @@
                         <label class="custom-switch-btn" for="exactmatchcheck"></label>
                     </div>
                 </div>
-
             </div>
+
+            <div class="row" style="display:table; margin-top:10px;">
+                <button type="button" class="btn btn-outline-light btn-sm" id="sources-btn">
+                    <i class="fas fa-filter"></i> <span id="sources-btn-label">Sources</span>
+                </button>
+            </div>
+
+            <input type="hidden" name="SelectedSources" id="selected-sources-input" value="">
             </div>
         </div>
     </div>
 </form>
+
+<!-- Source filter overlay — circular panel pinned over stargate inner ring -->
+<div id="sources-backdrop" style="display:none; position:fixed; inset:0; z-index:1055; background:rgba(0,0,15,0.75);">
+<div id="sourcesDialog">
+    <!-- inner wrapper padded to stay within the circle's inscribed square -->
+    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%; padding: 80px; box-sizing:border-box; position:relative;">
+        <button type="button" id="sources-dialog-close" aria-label="Close"
+            style="position:absolute; top:90px; right:90px; background:none; border:none; color:#a0c4e8; font-size:1.3rem; cursor:pointer; line-height:1; padding:0;">&times;</button>
+        <h5 style="color:white; margin-bottom:14px; font-family:'Papyrus',fantasy; font-size:1.2rem; letter-spacing:.04em;">Sources</h5>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:7px 20px; width:100%; margin-bottom:18px;">
+            <div class="form-check">
+                <input class="form-check-input source-cb" type="checkbox" value="4" id="src-4">
+                <label class="form-check-label" for="src-4">Faulkner</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input source-cb" type="checkbox" value="1" id="src-1">
+                <label class="form-check-label" for="src-1">Vygus (2018)</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input source-cb" type="checkbox" value="0" id="src-0">
+                <label class="form-check-label" for="src-0">Dickson</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input source-cb" type="checkbox" value="2" id="src-2">
+                <label class="form-check-label" for="src-2">Lexicon</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input source-cb" type="checkbox" value="6" id="src-6">
+                <label class="form-check-label" for="src-6">Allen</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input source-cb" type="checkbox" value="9" id="src-9">
+                <label class="form-check-label" for="src-9">Gardiner</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input source-cb" type="checkbox" value="5" id="src-5">
+                <label class="form-check-label" for="src-5">Collier &amp; Manley</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input source-cb" type="checkbox" value="8" id="src-8">
+                <label class="form-check-label" for="src-8">Kamrin</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input source-cb" type="checkbox" value="10" id="src-10">
+                <label class="form-check-label" for="src-10">Evans</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input source-cb" type="checkbox" value="7" id="src-7">
+                <label class="form-check-label" for="src-7">Hoch</label>
+            </div>
+        </div>
+        <div style="display:flex; justify-content:space-between; width:100%; gap:10px;">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="toggle-all-btn">Deselect All</button>
+            <button type="button" class="btn btn-primary btn-sm" id="apply-sources-btn">Apply</button>
+        </div>
+    </div>
+</div>
+</div>
+
+<script>
+(function () {
+    var ALL = [4, 1, 0, 2, 6, 9, 5, 8, 10, 7];
+    var STORAGE_KEY = 'sebaseba-sources';
+    var backdrop = document.getElementById('sources-backdrop');
+    var dlg = document.getElementById('sourcesDialog');
+
+    function load() {
+        try {
+            var stored = localStorage.getItem(STORAGE_KEY);
+            if (!stored) return ALL.slice();
+            var a = JSON.parse(stored);
+            return Array.isArray(a) && a.length ? a : ALL.slice();
+        } catch (e) { return ALL.slice(); }
+    }
+
+    function save(selected) {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(selected)); } catch (e) {}
+    }
+
+    function syncCheckboxes(selected) {
+        var s = new Set(selected.map(String));
+        document.querySelectorAll('.source-cb').forEach(function (cb) { cb.checked = s.has(cb.value); });
+    }
+
+    function readCheckboxes() {
+        var sel = [];
+        document.querySelectorAll('.source-cb:checked').forEach(function (cb) { sel.push(parseInt(cb.value)); });
+        return sel.length ? sel : ALL.slice();
+    }
+
+    function updateButton(selected) {
+        var label = document.getElementById('sources-btn-label');
+        if (label) label.textContent = selected.length === ALL.length
+            ? 'Sources'
+            : 'Sources (' + selected.length + '/' + ALL.length + ')';
+        var toggleBtn = document.getElementById('toggle-all-btn');
+        if (toggleBtn) toggleBtn.textContent = selected.length === ALL.length ? 'Deselect All' : 'Select All';
+    }
+
+    function setHidden(selected) {
+        var inp = document.getElementById('selected-sources-input');
+        if (inp) inp.value = selected.join(',');
+    }
+
+    function openDialog() {
+        var inner = document.getElementById('stargate-inner');
+        if (inner) {
+            var r = inner.getBoundingClientRect();
+            // position panel so its center matches the stargate inner ring center
+            dlg.style.top  = (r.top  + r.height / 2 - 240 + window.scrollY) + 'px';
+            dlg.style.left = (r.left + r.width  / 2 - 240 + window.scrollX) + 'px';
+        }
+        syncCheckboxes(load());
+        var allChecked = document.querySelectorAll('.source-cb:not(:checked)').length === 0;
+        document.getElementById('toggle-all-btn').textContent = allChecked ? 'Deselect All' : 'Select All';
+        backdrop.style.display = 'block';
+    }
+
+    function closeDialog() { backdrop.style.display = 'none'; }
+
+    // Init
+    var current = load();
+    setHidden(current);
+    updateButton(current);
+
+    document.getElementById('sources-btn').onclick = openDialog;
+
+    document.getElementById('sources-dialog-close').onclick = closeDialog;
+
+    document.getElementById('apply-sources-btn').onclick = function () {
+        var sel = readCheckboxes();
+        save(sel);
+        setHidden(sel);
+        updateButton(sel);
+        closeDialog();
+    };
+
+    document.getElementById('toggle-all-btn').onclick = function () {
+        var allChecked = document.querySelectorAll('.source-cb:not(:checked)').length === 0;
+        document.querySelectorAll('.source-cb').forEach(function (cb) { cb.checked = !allChecked; });
+        this.textContent = allChecked ? 'Select All' : 'Deselect All';
+    };
+
+    // Click outside panel (on backdrop) to close
+    backdrop.addEventListener('click', function (e) {
+        if (e.target === backdrop) closeDialog();
+    });
+
+    // Esc key to close
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && backdrop.style.display !== 'none') closeDialog();
+    });
+})();
+</script>
 {% endblock %}

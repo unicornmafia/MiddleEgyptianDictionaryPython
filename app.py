@@ -97,7 +97,7 @@ TRANSLIT_MAP = {
 }
 
 
-_GARD_TOKEN_RE = re.compile(r'^[A-Z][a-z]?\d+[A-Za-z]*$')
+_GARD_TOKEN_RE = re.compile(r'^(?:AA|[A-Z][a-z]?)\d+[A-Za-z]*$')
 _GARD_SUFFIX_RE = re.compile(r'(?<=\d)([A-Za-z]+)$')
 
 
@@ -122,6 +122,9 @@ def _normalize_gardiner_token(tok: str) -> str | None:
     # J-series → Aa-series (e.g. J8 → Aa8)
     if tok[0] == 'J' and (len(tok) < 2 or not tok[1].isalpha()):
         tok = 'Aa' + tok[1:]
+    # AA-series (uppercase) → Aa-series (e.g. AA1 → Aa1, AA15 → Aa15)
+    elif tok.startswith('AA') and len(tok) > 2 and tok[2].isdigit():
+        tok = 'Aa' + tok[2:]
     # Lowercase any trailing letter suffix after the digits (N35A→N35a, T14CB→T14cb)
     tok = _GARD_SUFFIX_RE.sub(lambda m: m.group(1).lower(), tok)
     return tok
@@ -305,33 +308,53 @@ def _search_all(query: str, exact: bool) -> list:
                 }
             )
         )
-    return sign_translit + _search_by_translation(query, exact)
+    seen_ids = {e["_id"] for e in sign_translit}
+    translation_results = [e for e in _search_by_translation(query, exact) if e["_id"] not in seen_ids]
+    # Return as two groups: sign/translit matches always precede translation-only matches.
+    # _sort_results is applied within each group so ranking stays coherent but a
+    # keyword-only hit can never jump ahead of a direct sign/transliteration match.
+    return _sort_results(sign_translit) + _sort_results(translation_results)
 
 
 def _sort_results(results: list) -> list:
     def _key(entry):
-        translations = entry.get("Translations", [])
-        dict_names = []
-        for t in translations:
+        unique_sources = set()
+        for t in entry.get("Translations", []):
             for m in t.get("TranslationMetadata", []):
-                dict_names.append(m.get("DictionaryName", 0))
-        has_faulkner = 4 in dict_names
-        dict_sum = sum(dict_names)
-        return (not has_faulkner, -dict_sum, entry.get("Transliteration", ""), entry.get("GardinerSigns", ""))
+                unique_sources.add(m.get("DictionaryName"))
+        has_faulkner = 4 in unique_sources
+        return (not has_faulkner, -len(unique_sources), entry.get("Transliteration", ""), entry.get("GardinerSigns", ""))
 
     return sorted(results, key=_key)
 
 
-def conduct_search(search_type: str, query: str, sign_query: str, exact: bool) -> list:
+def _filter_by_sources(results: list, sources: list[int]) -> list:
+    if not sources or len(sources) >= len(_DATASOURCE_NAMES):
+        return results
+    source_set = set(sources)
+    filtered = []
+    for entry in results:
+        for t in entry.get("Translations", []):
+            if any(m.get("DictionaryName") in source_set for m in t.get("TranslationMetadata", [])):
+                filtered.append(entry)
+                break
+    return filtered
+
+
+def conduct_search(search_type: str, query: str, sign_query: str, exact: bool,
+                   selected_sources: list[int] | None = None) -> list:
     if search_type == "transliteration":
         query = _sanitize_transliteration(query)
-        return _sort_results(_search_by_transliteration(query, exact))
-    if search_type == "translation":
-        return _sort_results(_search_by_translation(query, exact))
-    if search_type == "gardiner":
-        return _sort_results(_search_by_gardiner(sign_query, exact))
-    # default: all
-    return _sort_results(_search_all(query, exact))
+        results = _sort_results(_search_by_transliteration(query, exact))
+    elif search_type == "translation":
+        results = _sort_results(_search_by_translation(query, exact))
+    elif search_type == "gardiner":
+        results = _sort_results(_search_by_gardiner(sign_query, exact))
+    else:
+        results = _search_all(query, exact)
+    if selected_sources is not None:
+        results = _filter_by_sources(results, selected_sources)
+    return results
 
 # ---------------------------------------------------------------------------
 # Result cache (file-backed, keyed by UUID stored in session)
@@ -372,6 +395,7 @@ _DATASOURCE_NAMES = {
     9: "gardiner_grammar",
     10: "evans",
     11: "faulkner_revised",
+    12: "vygus_2012",
 }
 _DATASOURCE_DISPLAY = {
     "dickson": "Dickson",
@@ -385,6 +409,7 @@ _DATASOURCE_DISPLAY = {
     "gardiner_grammar": "Gardiner Grammar",
     "evans": "Evans",
     "faulkner_revised": "Faulkner (Revised)",
+    "vygus_2012": "Vygus (2012)",
 }
 _DATASOURCE_COLORS = {
     "faulkner": "lightblue",
@@ -398,6 +423,7 @@ _DATASOURCE_COLORS = {
     "gardiner_grammar": "honeydew",
     "evans": "aliceblue",
     "faulkner_revised": "lightcyan",
+    "vygus_2012": "plum",
 }
 
 
@@ -433,7 +459,16 @@ def submit():
         search_type = request.form.get("Type", "transliteration")
         display_formatted = request.form.get("DisplayFormatted", "true").lower() in ("true", "1", "on")
 
-        results = conduct_search(search_type, query, sign_query, exact_match)
+        sources_str = request.form.get("SelectedSources", "").strip()
+        if sources_str:
+            try:
+                selected_sources: list[int] | None = [int(x) for x in sources_str.split(",") if x.strip()]
+            except ValueError:
+                selected_sources = None
+        else:
+            selected_sources = None
+
+        results = conduct_search(search_type, query, sign_query, exact_match, selected_sources)
         total_count = len(results)
         limited = results[:MAX_RESULTS]
 
@@ -444,6 +479,7 @@ def submit():
         session["search_id"] = search_id
         session["display_formatted"] = display_formatted
         session["total_original"] = total_count
+        session["selected_sources"] = selected_sources
 
         return redirect(url_for("results", page=1))
     except Exception as e:
@@ -469,6 +505,14 @@ def results():
     start = (page - 1) * DEFAULT_PAGE_SIZE
     paged = all_results[start : start + DEFAULT_PAGE_SIZE]
 
+    selected_sources = session.get("selected_sources")
+    all_source_count = len(_DATASOURCE_NAMES)
+    source_filtered = selected_sources is not None and len(selected_sources) < all_source_count
+    source_filter_labels = (
+        [_DATASOURCE_DISPLAY.get(_DATASOURCE_NAMES.get(s, ""), str(s)) for s in selected_sources]
+        if source_filtered else []
+    )
+
     return render_template(
         "results.html",
         results=paged,
@@ -480,6 +524,8 @@ def results():
         truncated=total_original > MAX_RESULTS,
         original_count=total_original,
         unknown_glyphs=UNKNOWN_GLYPHS,
+        source_filtered=source_filtered,
+        source_filter_labels=source_filter_labels,
         convert_gardiner=convert_gardiner,
         prettify_transliteration=prettify_transliteration,
         datasource_name=datasource_name,
@@ -552,6 +598,11 @@ def gardiner_signs():
 @app.route("/references")
 def references():
     return render_template("references.html")
+
+
+@app.route("/sources")
+def sources():
+    return render_template("sources.html")
 
 
 @app.route("/faulkner")

@@ -17,6 +17,13 @@
         {% endif %}
     </span>
 </div>
+{% if source_filtered %}
+<div class="alert alert-info py-2 mb-3 d-flex align-items-center gap-2" role="alert">
+    <i class="fas fa-filter"></i>
+    <span>Filtered to: <strong>{{ source_filter_labels | join(', ') }}</strong></span>
+    <a href="{{ url_for('index') }}" class="ms-auto btn btn-sm btn-outline-secondary">Clear filter</a>
+</div>
+{% endif %}
 
 <!-- Top pagination -->
 {% if total_pages > 1 %}

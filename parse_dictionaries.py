@@ -31,6 +31,7 @@ from pymongo import MongoClient, UpdateOne
 # ---------------------------------------------------------------------------
 DICKSON          = 0
 VYGUS            = 1
+LEXICON          = 2
 FAULKNER         = 4
 COLLIER_MANLEY    = 5
 ALLEN             = 6
@@ -39,6 +40,7 @@ KAMRIN            = 8
 GARDINER_GRAMMAR  = 9
 EVANS             = 10
 FAULKNER_REVISED  = 11
+VYGUS_2012       = 12
 
 PDFS_DIR = os.path.join(os.path.dirname(__file__), "pdfs")
 
@@ -326,6 +328,96 @@ def parse_faulkner_revised(pdf_path: str = _FAULK_REV_PDF) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# OpenGlyp Lexicon parser (Lexicon.txt)
+# ---------------------------------------------------------------------------
+# Format (one entry per line):
+#   GardCode1,GardCode2,...,;transliteration;translation;frequency;
+# Transliteration may use "=" as a suffix boundary (converted to ".").
+# Source ID: LEXICON (2)
+
+_LEXICON_PATH = os.path.join(os.path.dirname(__file__), "dictionaries", "Lexicon.txt")
+
+
+def parse_lexicon_txt(path: str = _LEXICON_PATH) -> list[dict]:
+    entries = []
+    if not os.path.exists(path):
+        print(f"  Lexicon.txt not found at {path}; skipping.", file=sys.stderr)
+        return entries
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split(";")
+            if len(parts) < 3:
+                continue
+            sign_parts = [s.strip() for s in parts[0].split(",") if s.strip()]
+            signs = " ".join(sign_parts)
+            translit = parts[1].strip().replace("=", ".")
+            translation = parts[2].strip().replace("''", "'")
+            if not translit or not translation:
+                continue
+            entries.append({
+                "transliteration": translit,
+                "gardiner_signs":  signs,
+                "translation":     translation,
+                "pos":             None,
+                "source":          LEXICON,
+            })
+    print(f"  Lexicon: parsed {len(entries)} entries", file=sys.stderr)
+    return entries
+
+
+# ---------------------------------------------------------------------------
+# Vygus 2012 parser
+# ---------------------------------------------------------------------------
+# Same line-pair format as Vygus 2018 but with "vygus" watermark tokens
+# that need to be stripped.  Source ID: VYGUS_2012 (12).
+
+_VYGUS_2012_PDF = os.path.join(os.path.dirname(__file__), "pdfs", "vygus_2012.pdf")
+_VYGUS_2012_FIRST = 24   # page index (1-based in the PDF)
+_VYGUS_2012_LAST  = 2267
+
+
+def parse_vygus_2012(pdf_path: str = _VYGUS_2012_PDF) -> list[dict]:
+    """Parse Vygus 2012 edition — strips 'vygus' watermark tokens."""
+    if not os.path.exists(pdf_path):
+        print(f"  Vygus 2012 PDF not found at {pdf_path}; skipping.", file=sys.stderr)
+        return []
+
+    import pdfplumber  # imported at top but repeated for clarity
+
+    entries = []
+    with pdfplumber.open(pdf_path) as pdf:
+        pages = pdf.pages[_VYGUS_2012_FIRST - 1: _VYGUS_2012_LAST]
+        for page in pages:
+            text = page.extract_text()
+            if not text:
+                continue
+            # Strip "vygus" watermark (appears as standalone token)
+            cleaned = " ".join(
+                w for w in text.split()
+                if w.lower() != "vygus"
+            )
+            lines = cleaned.splitlines() if "\n" in cleaned else _split_vygus_pairs(cleaned)
+            for line in lines:
+                e = _parse_vygus_line(line)
+                if e:
+                    e["source"] = VYGUS_2012
+                    entries.append(e)
+
+    print(f"  Vygus 2012: parsed {len(entries)} entries", file=sys.stderr)
+    return entries
+
+
+def _split_vygus_pairs(text: str) -> list[str]:
+    """Split cleaned Vygus page text into word-data/transliteration pairs."""
+    # After watermark removal, the text is space-joined; split on newlines
+    # reintroduced by pdfplumber or fall back to the existing parser
+    return text.split("\n")
+
+
+# ---------------------------------------------------------------------------
 # Vocabulary file parser (.hwd / .hrw / .csv)
 # ---------------------------------------------------------------------------
 # All three formats share the same CSV layout:
@@ -440,12 +532,56 @@ def parse_all_vocab_files(directory: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Lexicon.txt frequency index for Faulkner placement
+# ---------------------------------------------------------------------------
+# The OpenGlyp Lexicon.txt (from fayrose/MiddleEgyptianDataset) records a
+# corpus frequency for each (transliteration, GardinerSigns) pair.  We use
+# it to pick the *most-attested* spelling variant when a transliteration maps
+# to multiple entries — much better than the arbitrary PDF-parse order.
+
+_LEXICON_TXT = os.path.join(os.path.dirname(__file__),
+                            "..", "MiddleEgyptianDataset",
+                            "MiddleEgyptianDictionary", "Resources",
+                            "Lexicon.txt")
+
+
+def _build_lexicon_index(path: str = _LEXICON_TXT) -> dict:
+    """
+    Returns {transliteration: [(gardiner_signs, frequency), ...]} sorted by
+    frequency descending.  Returns empty dict if the file is not found.
+    """
+    index: dict[str, list] = defaultdict(list)
+    if not os.path.exists(path):
+        print(f"  Warning: Lexicon.txt not found at {path}; "
+              "Faulkner placement will use first-match fallback.", file=sys.stderr)
+        return index
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            parts = line.strip().split(";")
+            if len(parts) < 4:
+                continue
+            sign_parts = [s.strip() for s in parts[0].split(",") if s.strip()]
+            signs = " ".join(sign_parts)
+            translit = parts[1].strip().replace("=", ".")
+            try:
+                freq = float(parts[3]) if parts[3].strip() else 0.0
+            except ValueError:
+                freq = 0.0
+            if translit and signs:
+                index[translit].append((signs, freq))
+    for k in index:
+        index[k].sort(key=lambda x: -x[1])
+    print(f"  Lexicon index: {len(index)} transliterations loaded", file=sys.stderr)
+    return index
+
+
+# ---------------------------------------------------------------------------
 # Merge into unified DictionaryEntry documents
 # ---------------------------------------------------------------------------
 # Entries from Vygus/Dickson are keyed by (transliteration, gardiner_signs).
 # Faulkner entries are keyed by transliteration only (no Gardiner), and are
-# merged into an existing Vygus/Dickson entry when there is an exact
-# transliteration match; otherwise they stand alone.
+# merged into the best-frequency existing entry per the Lexicon.txt index,
+# or the first-match entry if the Lexicon doesn't help.
 
 
 def _normalise_gard(gs: str) -> str:
@@ -457,7 +593,8 @@ def _normalise_translit(t: str) -> str:
     return t.strip()
 
 
-def merge_entries(vygus: list, dickson: list, faulkner: list, vocab: list | None = None) -> list[dict]:
+def merge_entries(vygus: list, dickson: list, faulkner: list, vocab: list | None = None,
+                  lexicon_index: dict | None = None) -> list[dict]:
     """
     Produce a list of DictionaryEntry dicts matching the app's MongoDB schema.
 
@@ -539,11 +676,21 @@ def merge_entries(vygus: list, dickson: list, faulkner: list, vocab: list | None
     for entry in merged.values():
         translit_index[_normalise_translit(entry["Transliteration"])].append(entry)
 
+    _lex = lexicon_index or {}
+
     for e in faulkner:
         norm = _normalise_translit(e["transliteration"])
         if norm in translit_index:
-            # Attach to first matching entry (closest match)
-            target = translit_index[norm][0]
+            candidates = translit_index[norm]
+            target = candidates[0]  # default: first match
+            # Use Lexicon.txt frequency to pick the most-attested spelling
+            if len(candidates) > 1 and norm in _lex:
+                cand_signs = {_normalise_gard(c["GardinerSigns"]): c for c in candidates}
+                for (signs, _freq) in _lex[norm]:
+                    ns = _normalise_gard(signs)
+                    if ns in cand_signs:
+                        target = cand_signs[ns]
+                        break
         else:
             # Create standalone Faulkner-only entry (no Gardiner signs)
             target = _get_or_create(e["transliteration"], "")
@@ -750,8 +897,11 @@ def main():
         dickson_entries  = parse_dickson(dickson_path)   if not args.skip_dickson  else []
         faulkner_entries = parse_faulkner(faulkner_path) if not args.skip_faulkner else []
 
+        print("Building Lexicon frequency index…", file=sys.stderr)
+        lex_idx = _build_lexicon_index()
         print("Merging…", file=sys.stderr)
-        entries = merge_entries(vygus_entries, dickson_entries, faulkner_entries)
+        entries = merge_entries(vygus_entries, dickson_entries, faulkner_entries,
+                                lexicon_index=lex_idx)
 
     # --- Faulkner Revised ---
     if not args.skip_faulkner_revised and os.path.exists(_FAULK_REV_PDF):

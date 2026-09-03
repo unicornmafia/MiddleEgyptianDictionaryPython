@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Sources{% endblock %}
+
+{% block content %}
+<div class="col-md-8 offset-md-2 col-xs-10 offset-xs-1">
+    <div class="justify-content-center">
+        <h3 class="top_margin">About This Project</h3>
+        <p>
+            Seba-Seba Egyptian Dictionary is a reconstruction of and tribute to the
+            <a href="https://middleegyptian.azurewebsites.com" target="_blank" rel="noopener noreferrer">Middle Egyptian Dictionary</a>
+            web application. That project is a remarkable resource for students and scholars of Middle Egyptian, and
+            this work would not exist without the effort that went into building it. Many thanks to its creators.
+        </p>
+        <p>
+            The dictionary data in this project was drawn from the same sources used by the original application,
+            supplemented by additional wordlists and grammar references listed below.
+        </p>
+    </div>
+
+    <div class="justify-content-center">
+        <h3 class="top_margin">Dictionary Sources</h3>
+        <ul>
+            <li>
+                <i>A Concise Dictionary of Middle Egyptian</i> (1991) &mdash; Raymond O. Faulkner. PDF.
+                <a href="https://community.dur.ac.uk/penelope.wilson/Hieroglyphs/Faulkner-A-Concise-Dictionary-of-Middle-Egyptian-1991.pdf"
+                   target="_blank" rel="noopener noreferrer">Link</a>
+            </li>
+            <li>
+                <i>A Concise Dictionary of Middle Egyptian</i> (Revised edition) &mdash; Raymond O. Faulkner,
+                revised by Boris Jegorovic. PDF.
+                <a href="https://archive.org/details/pj1425.f3" target="_blank" rel="noopener noreferrer">Link</a>
+            </li>
+            <li>
+                <i>Middle Egyptian Dictionary</i> (2018) &mdash; Mark Vygus. PDF.
+                <a href="http://rhbarnhart.net/VYGUS_Dictionary_2018.pdf"
+                   target="_blank" rel="noopener noreferrer">Link</a>
+            </li>
+            <li>
+                <i>Middle Egyptian Dictionary</i> (2012) &mdash; Mark Vygus. PDF.
+                Earlier edition; included for reference.
+            </li>
+            <li>
+                <i>Dictionary of Middle Egyptian</i> (2006) &mdash; Paul Dickson. PDF.
+                <a href="http://www.pyramidtextsonline.com/documents/DicksonDictionary.pdf"
+                   target="_blank" rel="noopener noreferrer">Link</a>
+            </li>
+            <li>
+                <i>OpenGlyp Lexicon</i> &mdash; Morris Franken. Sign-indexed wordlist from
+                the OpenGlyp project (<code>Lexicon.txt</code>), providing corpus-frequency
+                data used for sign variant ranking.
+            </li>
+            <li>
+                <i>How to Read Egyptian Hieroglyphs</i> &mdash; Mark Collier &amp; Bill Manley.
+                Wordlist imported from HieroWords (<code>Collier&amp;Manley.hrw</code>).
+            </li>
+            <li>
+                <i>Middle Egyptian: An Introduction to the Language and Culture of Hieroglyphs</i> &mdash;
+                James P. Allen. Vocabulary imported from HieroWords (<code>Allen Lessons 1&ndash;8.hwd</code>).
+            </li>
+            <li>
+                <i>Middle Egyptian Grammar</i> &mdash; James E. Hoch.
+                Vocabulary imported from HieroWords (<code>Hoch 1&ndash;2.hwd</code>).
+            </li>
+            <li>
+                <i>The Cosmos of Khnumhotep II at Beni Hassan</i> &mdash; Janice Kamrin.
+                Glossary data compiled from community contributions
+                (<code>kamrin_chapters_1-2</code>, <code>kamrin_pages_31-128</code>,
+                <code>kamrin_34-38-67-69</code>, <code>kamrin_titles</code>).
+            </li>
+            <li>
+                <i>Biliteral and Triliteral sign wordlists</i> &mdash; HieroWords community.
+                Imported from <code>Biliterals in English.hrw</code> and
+                <code>Triliterals in English.hrw</code>.
+                <a href="https://hierowords.weebly.com/download.html"
+                   target="_blank" rel="noopener noreferrer">HieroWords download page</a>
+            </li>
+            <li>
+                <i>Gardiner's Grammar sign list</i> &mdash; Egyptian hieroglyph sign data
+                derived from Gardiner&rsquo;s <i>Egyptian Grammar</i>.
+            </li>
+        </ul>
+    </div>
+
+    <div class="justify-content-center">
+        <h3 class="top_margin">Software &amp; Libraries</h3>
+        <ul>
+            <li>
+                <i>RES (Rendering of Egyptian Signs)</i> &mdash; Mark-Jan Nederhof.
+                The JavaScript library used to render hieroglyphs in the browser.
+                <a href="https://mjn.host.cs.st-andrews.ac.uk/egyptian/res/js/"
+                   target="_blank" rel="noopener noreferrer">RES source</a>
+            </li>
+            <li>
+                <i>HieroWords</i> &mdash; Wordlist management application whose export format
+                was used for several of the dictionary files above.
+                <a href="https://hierowords.weebly.com/download.html"
+                   target="_blank" rel="noopener noreferrer">HieroWords download page</a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="justify-content-center">
+        <h3 class="top_margin">This Project</h3>
+        <p>
+            Seba-Seba Egyptian Dictionary is an open-source reconstruction.
+            The source code is available on GitHub. Contributions, corrections, and additional
+            wordlists are welcome.
+        </p>
+    </div>
+</div>
+{% endblock %}
