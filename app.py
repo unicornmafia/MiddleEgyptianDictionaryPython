@@ -100,6 +100,7 @@ TRANSLIT_MAP = {
 _GARD_TOKEN_RE = re.compile(r'^(?:AA|[A-Z][a-z]?)\d+[A-Za-z]*$')
 _GARD_SUFFIX_RE = re.compile(r'(?<=\d)([A-Za-z]+)$')
 _MDC_POSTFIX_RE = re.compile(r'((?:Aa|AA|[A-Z])\d+)([A-Za-z]+)')
+_RES_CODE_RE = re.compile(r'(?:Aa|[A-Za-z])\d+[a-z]*')
 
 # Translation table ported from ManuelDeCodageToRESConverter.cs
 _MDC_TRANSLATION_DIC: dict[str, str] = {
@@ -274,13 +275,10 @@ def gardiner_render_items(gardiner_signs: str) -> list:
     mdc = GARDINER_TO_MDC.get(key)
 
     if mdc:
-        tokens = gardiner_signs.split()
-        all_known = all(
-            (n := _normalize_gardiner_token(t)) is not None and n in RES_KNOWN_SIGNS
-            for t in tokens
-        )
-        if all_known:
-            return [{'kind': 'canvas', 'value': _mdc_to_res(mdc)}]
+        res_str = _mdc_to_res(mdc)
+        codes = _RES_CODE_RE.findall(res_str)
+        if codes and all(c in RES_KNOWN_SIGNS for c in codes):
+            return [{'kind': 'canvas', 'value': res_str}]
 
     # Fallback: per-sign canvas runs with image fallbacks for unknown signs
     items: list = []
