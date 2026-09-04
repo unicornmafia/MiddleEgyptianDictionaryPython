@@ -296,8 +296,20 @@ def gardiner_render_items(gardiner_signs: str) -> list:
         if normalized in RES_KNOWN_SIGNS:
             canvas_run.append(normalized)
         else:
-            _flush()
-            items.append({'kind': 'img', 'key': tok})
+            # Try the MdC translation dict for a renderable equivalent (e.g. Y1V→Y1a)
+            v = _MDC_TRANSLATION_DIC.get(tok.upper())
+            if v:
+                tcodes = _RES_CODE_RE.findall(v)
+                if tcodes and all(c in RES_KNOWN_SIGNS for c in tcodes):
+                    canvas_run.append(v)
+                    continue
+            # Image fallback — only if the tiff actually exists
+            tiff_key = tok.replace("AA", "J").replace("Aa", "J")
+            tiff_path = os.path.join(RESOURCES_PATH, f"{tiff_key}.tiff")
+            if os.path.exists(tiff_path):
+                _flush()
+                items.append({'kind': 'img', 'key': tok})
+            # else: silently skip signs with no renderable form
 
     _flush()
     return items
