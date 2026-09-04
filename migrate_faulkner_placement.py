@@ -21,10 +21,7 @@ from pymongo import MongoClient
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
 MONGO_DB  = os.environ.get("MONGO_DB", "MiddleEgyptianDictionary")
 
-LEXICON_TXT = os.path.join(os.path.dirname(__file__),
-                           "..", "MiddleEgyptianDataset",
-                           "MiddleEgyptianDictionary", "Resources",
-                           "Lexicon.txt")
+LEXICON_TXT = os.path.join(os.path.dirname(__file__), "dictionaries", "Lexicon.txt")
 
 FAULKNER = 4
 
